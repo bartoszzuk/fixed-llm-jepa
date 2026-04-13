@@ -14,6 +14,7 @@ import json
 from datasets import load_dataset
 import shutil
 from transformers import (
+    default_data_collator,
     AutoConfig,
     AutoTokenizer, 
     AutoModelForCausalLM,
@@ -788,6 +789,7 @@ def main():
     parser.add_argument("--infonce", action="store_true", help="When set, Use InfoNCE loss.")
     parser.add_argument("--same_flop", action="store_true", help="When set, Use same number of flops per epoch.")
     parser.add_argument("--jepa_ratio", type=float, default=-1.0, help="When >0, randomly select this ratio of batches to apply JEPA. This implments Random JEPA-Loss Dropout (LD). If LD = alpha, jepa_ratio = 1 - alpha")
+    parser.add_argument("--use_default_data_collator", action="store_true", help="When set, Use `default_data_collator`.")
 
     args = parser.parse_args()
     
@@ -892,11 +894,14 @@ def main():
             print("No evaluation dataset")
     
     # Data collator - don't use padding since we already padded
-    data_collator = DataCollatorForLanguageModeling(
-        tokenizer=tokenizer,
-        mlm=False,  # We're doing causal LM, not masked LM
-        pad_to_multiple_of=None,  # We already padded to max_length
-    )
+    if args.use_default_data_collator:
+        data_collator = default_data_collator
+    else:
+        data_collator = DataCollatorForLanguageModeling(
+            tokenizer=tokenizer,
+            mlm=False,  # We're doing causal LM, not masked LM
+            pad_to_multiple_of=None,  # We already padded to max_length
+        )
     
     # Training arguments - optimized for multi-GPU stability
     eval_steps = args.eval_steps if not args.pretrain else args.eval_steps * 20

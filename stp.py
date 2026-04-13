@@ -17,6 +17,7 @@ from datasets import load_dataset
 import shutil
 from safetensors.torch import load_file
 from transformers import (
+    default_data_collator,
     AutoConfig,
     AutoTokenizer, 
     AutoModelForCausalLM,
@@ -1354,6 +1355,7 @@ def main():
     parser.add_argument("--curvature_sign", action="store_true", help="When set to True, use signed angle to compute curvature.")
     parser.add_argument("--same_predictor", action="store_true", help="When set to True, use same predictor token.")
     parser.add_argument("--avg_encoding", action="store_true", help="When set to True, use average encoding.")
+    parser.add_argument("--use_default_data_collator", action="store_true", help="When set, Use `default_data_collator`.")
 
     args = parser.parse_args()
     
@@ -1465,11 +1467,14 @@ def main():
             print("No evaluation dataset")
     
     # Data collator - don't use padding since we already padded
-    data_collator = DataCollatorForLanguageModeling(
-        tokenizer=tokenizer,
-        mlm=False,  # We're doing causal LM, not masked LM
-        pad_to_multiple_of=None,  # We already padded to max_length
-    )
+    if args.use_default_data_collator:
+        data_collator = default_data_collator
+    else:
+        data_collator = DataCollatorForLanguageModeling(
+            tokenizer=tokenizer,
+            mlm=False,  # We're doing causal LM, not masked LM
+            pad_to_multiple_of=None,  # We already padded to max_length
+        )
     
     # Training arguments - optimized for multi-GPU stability
     eval_steps = args.eval_steps if not args.pretrain else args.eval_steps * 20
