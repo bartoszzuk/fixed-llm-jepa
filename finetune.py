@@ -247,41 +247,22 @@ def load_and_prepare_dataset(data_file, tokenizer, model_name,
         return labels
 
     def create_masked_labels(messages, tokenizer, input_ids, attention_mask):
-        """Create labels with input tokens masked (-100)"""
-        labels = [-100] * len(input_ids)
-        
-        # Mask padding tokens in labels
-        for i, mask in enumerate(attention_mask):
-            if mask == 0:  # Padding token
-                labels[i] = -100
-        
-        # Find assistant responses and unmask only those tokens
-        for msg in messages:
-            if msg['role'] == 'assistant':
-                assistant_content = msg['content']
-                
-                # Find where this assistant response appears in the tokenized text
-                assistant_tokens = tokenizer.encode(assistant_content, add_special_tokens=False)
-                
-                # Find the position of assistant response in input_ids
-                decoded_assistant = [tokenizer.decode(item) for item in assistant_tokens]
-                decoded_input = [tokenizer.decode(item) for item in input_ids]
-                for i in range(len(input_ids) - len(assistant_tokens) + 1):
-                    # Only check non-padding tokens
-                    if debug == 4 and torch.cuda.current_device() == 0:
-                        print(f"=======input_ids: {input_ids[i:i+len(assistant_tokens)]}")
-                        print(f"assistant_tokens: {assistant_tokens}")
-                    # if attention_mask[i] == 1 and input_ids[i:i+len(assistant_tokens)] == assistant_tokens:
-                    if attention_mask[i] == 1 and decoded_input[i:i+len(assistant_tokens)] == decoded_assistant:
-                        # Unmask the assistant response tokens
-                        for j in range(i, min(i + len(assistant_tokens), len(input_ids))):
-                            if attention_mask[j] == 1:  # Only unmask non-padding tokens
-                                labels[j] = input_ids[j]
-                        break
-                
-                if debug == 4:
-                    exit(0)
-        
+        """ Create labels with prompt tokens masked (-100) """
+        assert tokenizer.padding_side == "right", "This function assumes right side padding"
+
+        if plain:
+            prompt = tokenizer(messages[1]["content"] + "<|perception|>", add_special_tokens=False)['input_ids']
+        else:
+            prompt = tokenizer.apply_chat_template(messages[:-1], add_generation_prompt=True)
+
+        labels = [label if unmasked else -100 for label, unmasked in zip(input_ids, attention_mask)]
+        labels[:len(prompt)] = [-100] * len(prompt)
+
+        if debug == 4 and torch.cuda.current_device() == 0:
+            print("Ids:", tokenizer.decode(input_ids))
+            print("Unmasked:", tokenizer.decode([label for label in labels if label != -100]))
+            exit(0)
+
         return labels
     
     # Tokenize dataset
