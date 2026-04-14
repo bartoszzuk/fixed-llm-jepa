@@ -102,7 +102,8 @@ def load_and_prepare_dataset(data_file, tokenizer, model_name,
                 truncation=True,
                 max_length=max_length,
                 padding="max_length",  # Pad to max_length for consistent tensor shapes
-                return_tensors=None
+                return_tensors=None,
+                add_special_tokens=False
             )
             
             input_ids = tokenized["input_ids"]
@@ -148,7 +149,8 @@ def load_and_prepare_dataset(data_file, tokenizer, model_name,
                 truncation=True,
                 max_length=max_length,
                 padding="max_length",  # Pad to max_length for consistent tensor shapes
-                return_tensors=None
+                return_tensors=None,
+                add_special_tokens=False
             )
             user_input_ids_list.append(tokenized_user["input_ids"])
             user_labels_list.append([-100] * len(tokenized_user["input_ids"]))
@@ -177,7 +179,8 @@ def load_and_prepare_dataset(data_file, tokenizer, model_name,
                 truncation=True,
                 max_length=max_length,
                 padding="max_length",  # Pad to max_length for consistent tensor shapes
-                return_tensors=None
+                return_tensors=None,
+                add_special_tokens=False
             )
             assistant_input_ids_list.append(tokenized_assistant["input_ids"])
             assistant_labels_list.append([-100] * len(tokenized_assistant["input_ids"]))

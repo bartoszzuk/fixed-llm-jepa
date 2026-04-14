@@ -308,7 +308,8 @@ def generate_response(model, tokenizer, prompt, generation_config, max_new_token
         prompt,
         return_tensors="pt",
         truncation=True,
-        max_length=generation_config.max_length
+        max_length=generation_config.max_length,
+        add_special_tokens=False
     )
     
     # Move to model device
@@ -350,7 +351,8 @@ def get_sequence_embedding(model, tokenizer, prompt, generation_config, pooling=
         prompt,
         return_tensors="pt",
         truncation=True,
-        max_length=generation_config.max_length
+        max_length=generation_config.max_length,
+        add_special_tokens=False
     )
     
     # Move to model device
@@ -426,6 +428,7 @@ def relative_probability(model, tokenizer, prompt, max_length):
         return_tensors="pt",
         truncation=True,
         max_length=max_length,
+        add_special_tokens=False
     )
     
     # Move to model device
