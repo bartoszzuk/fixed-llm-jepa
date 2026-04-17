@@ -158,9 +158,9 @@ def get_assistant_messages(model_name, messages):
 
 def load_model_and_tokenizer(model_name, original_model_name, load_in_8bit=False, load_in_4bit=False, device_map="auto"):
     """Load model and tokenizer with optional quantization"""
-    
+
     print(f"Loading model: {model_name}")
-    
+
     # Configure quantization if requested
     quantization_config = None
     if load_in_4bit:
@@ -174,7 +174,7 @@ def load_model_and_tokenizer(model_name, original_model_name, load_in_8bit=False
     elif load_in_8bit:
         quantization_config = BitsAndBytesConfig(load_in_8bit=True)
         print("Using 8-bit quantization")
-    
+
     # Load tokenizer
     if "apple/OpenELM" in model_name:
         tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-chat-hf", trust_remote_code=True)
@@ -185,7 +185,7 @@ def load_model_and_tokenizer(model_name, original_model_name, load_in_8bit=False
     # Set pad token if not present
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    
+
     # Load model
     special_tokens = ["<|predictor_1|>", "<|predictor_2|>", "<|predictor_3|>", "<|predictor_4|>", "<|predictor_5|>",
                       "<|start_header_id|>", "<|end_header_id|>", "<|eot_id|>", "<|perception|>"]
@@ -215,9 +215,9 @@ def load_model_and_tokenizer(model_name, original_model_name, load_in_8bit=False
             quantization_config=quantization_config,
             low_cpu_mem_usage=True,
         )
-    
+
     model.eval()  # Set to evaluation mode
-    
+
     print(f"Model loaded on device: {model.device if hasattr(model, 'device') else 'multi-device'}")
     return model, tokenizer
 
@@ -241,7 +241,7 @@ def load_model_and_tokenizer(model_name, original_model_name, load_in_8bit=False
 #                 output += item["content"] + "<end_of_turn>\n<start_of_turn>model\n"
 #             elif item["role"] == "assistant":
 #                 output += item["content"] + "<end_of_turn>\n"
-        
+
 #         return output
 
 #     def apply_chat_template_llama2(_, messages):
@@ -258,7 +258,7 @@ def load_model_and_tokenizer(model_name, original_model_name, load_in_8bit=False
 #                 output += item["content"] + " [/INST]"
 #             elif item["role"] == "assistant":
 #                 output += " " + item["content"] + " </s>"
-        
+
 #         return output
 
 #     def apply_chat_template_openelm_eval(_, messages):
@@ -271,9 +271,9 @@ def load_model_and_tokenizer(model_name, original_model_name, load_in_8bit=False
 #                 output += "### User:\n" + item["content"] + "\n\n"
 #             elif item["role"] == "assistant":
 #                 output += "### Assistant:\n" + item["content"] + "\n\n"
-        
+
 #         return output + "### Assistant:"
-    
+
 #     if "apple/OpenELM" in model_name or "microsoft/phi" in model_name:
 #         return apply_chat_template_openelm_eval
 #     elif "google/gemma" in model_name:
@@ -288,7 +288,7 @@ def format_conversation(messages, tokenizer, include_assistant=False, plain=Fals
         messages = [msg for msg in messages if msg['role'] != 'assistant']
 
     # Use chat template if available
-    if plain:        
+    if plain:
         if similarity:
             formatted_text = messages[0]["content"]
         else:
@@ -302,7 +302,7 @@ def format_conversation(messages, tokenizer, include_assistant=False, plain=Fals
 
 def generate_response(model, tokenizer, prompt, generation_config, max_new_tokens, unmask_assistant_special_tokens=False):
     """Generate a single response"""
-    
+
     # Tokenize input
     inputs = tokenizer(
         prompt,
@@ -311,14 +311,14 @@ def generate_response(model, tokenizer, prompt, generation_config, max_new_token
         max_length=generation_config.max_length,
         add_special_tokens=not unmask_assistant_special_tokens
     )
-    
+
     # Move to model device
     if hasattr(model, 'device'):
         inputs = {k: v.to(model.device) for k, v in inputs.items()}
     else:
         # For multi-device setups, let the model handle device placement
         pass
-    
+
     # Generate
     with torch.no_grad():
         outputs = model.generate(
@@ -329,18 +329,18 @@ def generate_response(model, tokenizer, prompt, generation_config, max_new_token
             do_sample=False,
             max_new_tokens=max_new_tokens,
         )
-    
+
     # Decode only the generated part (exclude input)
     generated_tokens = outputs[0][len(inputs['input_ids'][0]):]
     response = tokenizer.decode(generated_tokens, skip_special_tokens=True)
-    
+
     # Clean up response
     response = response.strip()
-    
+
     # Remove any trailing special tokens or formatting
     if response.endswith("<|end|>"):
         response = response[:-7].strip()
-    
+
     return response
 
 
@@ -354,21 +354,21 @@ def get_sequence_embedding(model, tokenizer, prompt, generation_config, pooling=
         max_length=generation_config.max_length,
         add_special_tokens=not unmask_assistant_special_tokens
     )
-    
+
     # Move to model device
     if hasattr(model, 'device'):
         inputs = {k: v.to(model.device) for k, v in inputs.items()}
     else:
         # For multi-device setups, let the model handle device placement
         pass
-    
+
     # Get hidden states
     with torch.no_grad():
         outputs = model(**inputs, output_hidden_states=True)
-    
+
     # Extract embeddings from last layer
     hidden_states = outputs.hidden_states[layer]  # Shape: [batch_size, seq_len, hidden_dim]
-    
+
     if pooling == 'last':
         # Use last token embedding (common for decoder models)
         embedding = hidden_states[0, -1, :]
@@ -379,45 +379,45 @@ def get_sequence_embedding(model, tokenizer, prompt, generation_config, pooling=
     elif pooling == 'cls':
         # Use first token (if model has CLS-like token)
         embedding = hidden_states[0, 0, :]
-    
+
     return embedding
 
 
 def split_dataset_and_save(input_file, train_file, test_file, test_size=0.2, seed=42):
     """Split dataset into train and test sets and save them"""
-    
+
     print(f"\nSplitting dataset: {input_file}")
     print(f"Test size: {test_size}")
     print(f"Random seed: {seed}")
-    
+
     # Load dataset
     if input_file.endswith('.jsonl'):
         dataset = load_dataset('json', data_files=input_file)['train']
     else:
         raise ValueError("Only JSONL files are supported")
-    
+
     print(f"Total examples: {len(dataset)}")
-    
+
     # Split dataset
     split_data = dataset.train_test_split(test_size=test_size, seed=seed, shuffle=True)
     train_dataset = split_data['train']
     test_dataset = split_data['test']
-    
+
     print(f"Train examples: {len(train_dataset)}")
     print(f"Test examples: {len(test_dataset)}")
-    
+
     # Save train set
     print(f"Saving train set to: {train_file}")
     with open(train_file, 'w') as f:
         for example in train_dataset:
             f.write(json.dumps(example) + '\n')
-    
+
     # Save test set
     print(f"Saving test set to: {test_file}")
     with open(test_file, 'w') as f:
         for example in test_dataset:
             f.write(json.dumps(example) + '\n')
-    
+
     print("Dataset splitting complete!")
     return train_file, test_file
 
@@ -430,18 +430,18 @@ def relative_probability(model, tokenizer, prompt, max_length, unmask_assistant_
         max_length=max_length,
         add_special_tokens=not unmask_assistant_special_tokens
     )
-    
+
     # Move to model device
     if hasattr(model, 'device'):
         inputs = {k: v.to(model.device) for k, v in inputs.items()}
     else:
         # For multi-device setups, let the model handle device placement
         pass
-    
+
     # Get hidden states
     with torch.no_grad():
         outputs = model(**inputs)
-    
+
     logits = outputs.logits
     next_token_logits = logits[0, -1]
     token_A_id = tokenizer.convert_tokens_to_ids("A")
@@ -504,7 +504,7 @@ def eval(generated, ground_truth, input_file, spider_path, startswith=False, deb
 
     if input_file.startswith("spider"):
         return spider_eval(generated, ground_truth, spider_path, debug=debug)
-    
+
     if input_file.startswith("nq_open"):
         answer_list = generated.split("; ")
         for answer in answer_list:
@@ -519,26 +519,27 @@ def eval(generated, ground_truth, input_file, spider_path, startswith=False, deb
     return generated == ground_truth[2]["content"]
 
 
-def process_dataset(input_file, output_file, original_model_name, model, tokenizer, 
+def process_dataset(input_file, output_file, original_model_name, model, tokenizer,
                     generation_config, spider_path, max_examples=None, skip_existing=True,
                     split_tune_untune=False, start_index=1, layer=-1, pooling="last",
                     debug=0, similarity=False, startswith=False, max_new_tokens=128, t_sne=False,
-                    plain=False, t_sne_type=None, model_name=None, unmask_assistant_special_tokens=False):
+                    plain=False, t_sne_type=None, model_name=None, unmask_assistant_special_tokens=False,
+                    dump=False):
     """Process dataset and generate responses"""
-    
+
     # Load dataset
     if input_file.endswith('.jsonl'):
         dataset = load_dataset('json', data_files=input_file)['train']
     else:
         raise ValueError("Only JSONL files are supported")
-    
+
     print(f"Loaded {len(dataset)} examples from {input_file}")
-    
+
     # Limit examples if specified
     if max_examples:
         dataset = dataset.select(range(min(max_examples, len(dataset))))
         print(f"Processing {len(dataset)} examples (limited by max_examples)")
-    
+
     # Check if output file exists and load existing results
     existing_results = {}
     if not skip_existing and os.path.exists(output_file):
@@ -550,12 +551,14 @@ def process_dataset(input_file, output_file, original_model_name, model, tokeniz
                 except:
                     continue
         print(f"Found {len(existing_results)} existing results")
-    
+
     assert start_index == 1
     # Process examples
     results = []
     failed_count = 0
-    
+
+    responses = []
+
 
     sim_list = []
     sim_list_startswith = []
@@ -568,14 +571,14 @@ def process_dataset(input_file, output_file, original_model_name, model, tokeniz
     # apply_chat_template_func = apply_chat_template_selector(original_model_name)
     with open(output_file, 'w') as f:
         for idx, example in enumerate(tqdm(dataset, desc="Generating responses")):
-            
+
             # Skip if already processed
             if not skip_existing and idx in existing_results:
                 results.append(existing_results[idx])
                 f.write(json.dumps(existing_results[idx]) + '\n')
                 f.flush()
                 continue
-            
+
             try:
                 # Get the conversation messages
                 messages = example['messages']
@@ -610,7 +613,7 @@ def process_dataset(input_file, output_file, original_model_name, model, tokeniz
                         label_list.append(0 if "Good" in output_prompt else 1)
                     else:
                         assert t_sne_type is None, f"Unknown t_sne_type: {t_sne_type}"
-                    
+
                     if debug == 3:
                         print(f"EMBEDDING: {embedding_list[-1]}")
                         print(f"LABLE: {label_list[-1]}")
@@ -638,6 +641,12 @@ def process_dataset(input_file, output_file, original_model_name, model, tokeniz
                     # if startswith:
                     #     equal = generated_response.startswith(messages[2]["content"])
                     equal = eval(generated_response, messages, input_file, spider_path, startswith=False, debug=debug)
+
+                    if dump:
+                        reference = messages[-1]['content']
+                        response = {'completion': generated_response, 'reference': reference, 'correct': equal}
+                        responses.append(response)
+
                     if startswith:
                         is_startswith = eval(generated_response, messages, input_file, spider_path, startswith=True, debug=debug)
                         if is_startswith:
@@ -652,9 +661,16 @@ def process_dataset(input_file, output_file, original_model_name, model, tokeniz
                         sim_list_untune.append(cos_sim)
                 else:
                     sim_list.append(cos_sim)
-                
+
             except Exception as e:
                 raise e
+
+    if dump:
+        with open('response.jsonl', 'w') as file:
+            for response in responses:
+                file.write(json.dumps(response, ensure_ascii=False) + '\n')
+
+        print('[INFO] Dumped responses to responses.jsonl')
 
     if t_sne:
         data = {'embedding_list': embedding_list, 'label_list': label_list, 'sample_list': sample_list}
@@ -682,36 +698,36 @@ def process_dataset(input_file, output_file, original_model_name, model, tokeniz
 
 def main():
     parser = argparse.ArgumentParser(description="Generate assistant responses using a pretrained model")
-    
+
     # Model arguments
-    parser.add_argument("--model_name", type=str, required=True, 
+    parser.add_argument("--model_name", type=str, required=True,
                        help="Model name or path (e.g., 'microsoft/DialoGPT-medium', './my-finetuned-model')")
-    parser.add_argument("--original_model_name", type=str, required=True, 
+    parser.add_argument("--original_model_name", type=str, required=True,
                        help="Original model name.")
     parser.add_argument("--load_in_8bit", action="store_true", help="Load model in 8-bit precision")
     parser.add_argument("--load_in_4bit", action="store_true", help="Load model in 4-bit precision")
     parser.add_argument("--device_map", type=str, default="cuda:0", help="Device map for model loading")
-    
+
     # Data arguments
     parser.add_argument("--input_file", type=str, required=True, help="Input JSONL file with conversations")
     parser.add_argument("--output_file", type=str, help="Output JSONL file for generated responses")
     parser.add_argument("--max_examples", type=int, help="Maximum number of examples to process")
     parser.add_argument("--no_skip_existing", action="store_true", help="Don't skip existing results in output file")
-    
+
     # NEW: Train/Test split arguments
-    parser.add_argument("--nosplit_data", action="store_true", 
+    parser.add_argument("--nosplit_data", action="store_true",
                        help="Do not split input data into train and test sets before processing")
-    parser.add_argument("--test_size", type=float, default=0.2, 
+    parser.add_argument("--test_size", type=float, default=0.2,
                        help="Proportion of data to use for test set (default: 0.2)")
-    parser.add_argument("--split_seed", type=int, default=42, 
+    parser.add_argument("--split_seed", type=int, default=42,
                        help="Random seed for train/test split (default: 42)")
-    parser.add_argument("--train_file", type=str, 
+    parser.add_argument("--train_file", type=str,
                        help="Output file for train set (auto-generated if not specified)")
-    parser.add_argument("--test_file", type=str, 
+    parser.add_argument("--test_file", type=str,
                        help="Output file for test set (auto-generated if not specified)")
     parser.add_argument("--process_split", type=str, choices=['train', 'test', 'both'], default='test',
                        help="Which split to process for inference (default: both)")
-    
+
     # Generation arguments
     parser.add_argument("--max_new_tokens", type=int, default=128, help="Maximum new tokens to generate. Use -1 to unset.")
     parser.add_argument("--max_length", type=int, default=512, help="Maximum total sequence length")
@@ -735,27 +751,28 @@ def main():
     parser.add_argument("--plain", action="store_true", help="When set, do not apply chat format, and append `<|perception|>` to the prompt.")
     parser.add_argument("--spider_path", type=str, default="", help="Path to spider databases.")
     parser.add_argument("--unmask_assistant_special_tokens", action="store_true", help="When set, unmask assistant special tokens. Should match the training configuration.")
+    parser.add_argument("--dump", action="store_true", help="Dump to responses")
 
-    
+
     args = parser.parse_args()
-    
+
     # Validate arguments
     if not args.nosplit_data and not args.input_file and not (args.train_file and args.test_file):
         parser.error("When not using --nosplit_data, you must specify either --input_file or both --train_file and --test_file")
-    
+
     if args.nosplit_data and not args.input_file:
         parser.error("You must specify --input_file when using --nosplit_data")
-    
+
     print("=== Model Inference Script ===")
     print(f"Model: {args.model_name}")
     print(f"Input: {args.input_file}")
-    
+
     if not args.nosplit_data:
         print(f"Split data: Yes (test_size={args.test_size}, seed={args.split_seed})")
         print(f"Process split: {args.process_split}")
     else:
         print(f"Output: {args.output_file}")
-    
+
     print(f"Max examples: {args.max_examples or 'All'}")
     if args.max_new_tokens == -1:
         args.max_new_tokens = None
@@ -769,26 +786,26 @@ def main():
     print(f"Start index: {args.start_index}")
     print(f"Embedding layer: {args.embedding_layer}")
     print(f"Embedding pooling: {args.embedding_pooling}")
-    
+
     # Handle train/test splitting if requested
     if not args.nosplit_data:
         # Generate filenames if not provided
         base_name = os.path.splitext(args.input_file)[0]
         train_file = args.train_file or f"{base_name}_train.jsonl"
         test_file = args.test_file or f"{base_name}_test.jsonl"
-        
+
         # Split the dataset
         train_file, test_file = split_dataset_and_save(
-            args.input_file, train_file, test_file, 
+            args.input_file, train_file, test_file,
             test_size=args.test_size, seed=args.split_seed
         )
-        
+
         # Determine which files to process
         files_to_process = []
         if args.process_split in ['train', 'both']:
             output_train = args.output_file or f"{base_name}_train_responses.jsonl"
             files_to_process.append(('train', train_file, output_train))
-        
+
         if args.process_split in ['test', 'both']:
             output_test = args.output_file or f"{base_name}_test_responses.jsonl"
             if args.process_split == 'both' and not args.output_file:
@@ -797,7 +814,7 @@ def main():
     else:
         # Process single file
         files_to_process = [('full', args.input_file, args.output_file)]
-    
+
     # Load model and tokenizer
     print("\n1. Loading model and tokenizer...")
     model, tokenizer = load_model_and_tokenizer(
@@ -823,19 +840,19 @@ def main():
         pad_token_id=tokenizer.pad_token_id,
         eos_token_id=tokenizer.eos_token_id,
     )
-    
+
     # Add model name to config for tracking
     # generation_config.model_name = args.model_name
-    
+
     print(f"Generation config: {generation_config}")
-    
+
     # Process each file
     print(f"\n3. Processing {len(files_to_process)} file(s)...")
     all_results = {}
-    
+
     for split_name, input_file, output_file in files_to_process:
         print(f"\n--- Processing {split_name} set: {input_file} -> {output_file} ---")
-        
+
         results = process_dataset(
             input_file=input_file,
             output_file=output_file,
@@ -860,11 +877,11 @@ def main():
             model_name=args.model_name,
             unmask_assistant_special_tokens=args.unmask_assistant_special_tokens
         )
-        
+
         all_results[split_name] = results
-    
+
     print("\n🎉 Generation complete!")
-    
+
     # Print summary
     if len(files_to_process) > 1:
         print("\nSummary:")
