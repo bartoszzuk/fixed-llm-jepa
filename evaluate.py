@@ -677,11 +677,11 @@ def process_dataset(input_file, output_file, original_model_name, model, tokeniz
                 raise e
 
     if dump:
-        with open('responses.jsonl', 'w') as file:
+        with open(dump, 'w') as file:
             for response in responses:
                 file.write(json.dumps(response, ensure_ascii=False) + '\n')
 
-        print('[INFO] Dumped responses to responses.jsonl')
+        print(f'[INFO] Dumped responses to {dump}')
 
     if t_sne:
         data = {'embedding_list': embedding_list, 'label_list': label_list, 'sample_list': sample_list}
