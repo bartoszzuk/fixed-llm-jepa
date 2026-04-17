@@ -751,7 +751,7 @@ def main():
     parser.add_argument("--plain", action="store_true", help="When set, do not apply chat format, and append `<|perception|>` to the prompt.")
     parser.add_argument("--spider_path", type=str, default="", help="Path to spider databases.")
     parser.add_argument("--unmask_assistant_special_tokens", action="store_true", help="When set, unmask assistant special tokens. Should match the training configuration.")
-    parser.add_argument("--dump", action="store_true", help="Dump to responses")
+    parser.add_argument("--dump", type=str, default=False, help="Dump to responses")
 
 
     args = parser.parse_args()
