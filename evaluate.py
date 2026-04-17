@@ -300,7 +300,8 @@ def format_conversation(messages, tokenizer, include_assistant=False, plain=Fals
     return formatted_text
 
 
-def generate_response(model, tokenizer, prompt, generation_config, max_new_tokens, unmask_assistant_special_tokens=False):
+def generate_response(model, tokenizer, prompt, generation_config, max_new_tokens,
+                      unmask_assistant_special_tokens=False, use_model_generation_config=False):
     """Generate a single response"""
 
     # Tokenize input
@@ -319,13 +320,23 @@ def generate_response(model, tokenizer, prompt, generation_config, max_new_token
         # For multi-device setups, let the model handle device placement
         pass
 
+    if use_model_generation_config:
+        eos_token_id = model.generation_config.eos_token_id
+        pad_token_id = model.generation_config.pad_token_id
+
+        # In case pad token is not set use the one from tokenizer
+        pad_token_id = pad_token_id or tokenizer.pad_token_id
+    else:
+        eos_token_id = tokenizer.eos_token_id
+        pad_token_id = tokenizer.pad_token_id
+
     # Generate
     with torch.no_grad():
         outputs = model.generate(
             **inputs,
             # generation_config=generation_config,
-            pad_token_id=tokenizer.pad_token_id,
-            eos_token_id=tokenizer.eos_token_id,
+            pad_token_id=pad_token_id,
+            eos_token_id=eos_token_id,
             do_sample=False,
             max_new_tokens=max_new_tokens,
         )
@@ -524,7 +535,7 @@ def process_dataset(input_file, output_file, original_model_name, model, tokeniz
                     split_tune_untune=False, start_index=1, layer=-1, pooling="last",
                     debug=0, similarity=False, startswith=False, max_new_tokens=128, t_sne=False,
                     plain=False, t_sne_type=None, model_name=None, unmask_assistant_special_tokens=False,
-                    dump=False):
+                    dump=False, use_model_generation_config=False):
     """Process dataset and generate responses"""
 
     # Load dataset
@@ -635,7 +646,7 @@ def process_dataset(input_file, output_file, original_model_name, model, tokeniz
                             exit(0)
                     else:
                         generated_response = generate_response(model, tokenizer, prompt, generation_config, max_new_tokens,
-                                                               unmask_assistant_special_tokens)
+                                                               unmask_assistant_special_tokens, use_model_generation_config)
                     # if generated_response == messages[2]["content"]:
                     # equal = (generated_response == messages[2]["content"])
                     # if startswith:
@@ -752,6 +763,7 @@ def main():
     parser.add_argument("--spider_path", type=str, default="", help="Path to spider databases.")
     parser.add_argument("--unmask_assistant_special_tokens", action="store_true", help="When set, unmask assistant special tokens. Should match the training configuration.")
     parser.add_argument("--dump", type=str, default=False, help="Dump to responses")
+    parser.add_argument('--use_model_generation_config', action='store_true', help="Whether to use model generation config")
 
 
     args = parser.parse_args()
@@ -876,7 +888,8 @@ def main():
             plain=args.plain,
             model_name=args.model_name,
             unmask_assistant_special_tokens=args.unmask_assistant_special_tokens,
-            dump=args.dump
+            dump=args.dump,
+            use_model_generation_config=args.use_model_generation_config
         )
 
         all_results[split_name] = results
