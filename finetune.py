@@ -291,15 +291,19 @@ def load_and_prepare_dataset(data_file, tokenizer, model_name,
 
     def create_labels_with_masked_prompt(messages, tokenizer, input_ids, attention_mask):
         """ Create labels with prompt tokens masked (-100) """
-        assert tokenizer.padding_side == "right", "This function assumes right side padding"
+        padding = 0
+
+        if tokenizer.padding_side == 'left':
+            padding = len(attention_mask) - sum(attention_mask)
 
         if plain:
             prompt = tokenizer(messages[1]["content"] + "<|perception|>", add_special_tokens=False)['input_ids']
         else:
-            prompt = tokenizer.apply_chat_template(messages[:-1], add_generation_prompt=True)
+            prompt = get_messages(model_name, messages)[:-1]
+            prompt = tokenizer.apply_chat_template(prompt, add_generation_prompt=True)
 
         labels = [label if unmasked else -100 for label, unmasked in zip(input_ids, attention_mask)]
-        labels[:len(prompt)] = [-100] * len(prompt)
+        labels[:padding + len(prompt)] = [-100] * (padding + len(prompt))
 
         if debug == 4 and torch.cuda.current_device() == 0:
             print("Ids:", tokenizer.decode(input_ids))
