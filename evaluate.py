@@ -666,7 +666,7 @@ def process_dataset(input_file, output_file, original_model_name, model, tokeniz
                 raise e
 
     if dump:
-        with open('response.jsonl', 'w') as file:
+        with open('responses.jsonl', 'w') as file:
             for response in responses:
                 file.write(json.dumps(response, ensure_ascii=False) + '\n')
 
@@ -875,7 +875,8 @@ def main():
             t_sne_type=args.t_sne_type,
             plain=args.plain,
             model_name=args.model_name,
-            unmask_assistant_special_tokens=args.unmask_assistant_special_tokens
+            unmask_assistant_special_tokens=args.unmask_assistant_special_tokens,
+            dump=args.dump
         )
 
         all_results[split_name] = results
